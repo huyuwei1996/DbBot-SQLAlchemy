@@ -55,6 +55,11 @@ install using:
 
     $ python setup.py install
 
+    # else
+
+    $ python setup.py sdist
+    $ pip install dist/dbbot-sqlalchemy-0.2.tar.gz
+
 What is stored
 --------------
 
