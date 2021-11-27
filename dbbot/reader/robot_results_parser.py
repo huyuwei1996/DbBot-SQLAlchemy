@@ -17,7 +17,6 @@ from hashlib import sha1
 from robot.api import ExecutionResult
 from sqlalchemy.exc import IntegrityError
 
-
 from dbbot import Logger
 
 
@@ -168,30 +167,32 @@ class RobotResultsParser(object):
         for tag in tags:
             self._db.insert_or_ignore('tags', {'test_id': test_id, 'content': tag})
 
-    def _parse_keywords(self, keywords, test_run_id, suite_id, test_id, keyword_id=None):
+    def _parse_keywords(self, keywords, test_run_id, suite_id, test_id):
         if self._include_keywords:
-            [self._parse_keyword(keyword, test_run_id, suite_id, test_id, keyword_id) for keyword in keywords]
+            [self._parse_keyword(keyword, test_run_id, suite_id, test_id) for keyword in keywords]
 
-    def _parse_keyword(self, keyword, test_run_id, suite_id, test_id, keyword_id):
+    def _parse_keyword(self, keyword, test_run_id, suite_id, test_id):
         try:
             keyword_id = self._db.insert('keywords', {
                 'suite_id': suite_id,
                 'test_id': test_id,
-                'keyword_id': keyword_id,
+                'keyword_xml_id': keyword.id,
                 'name': keyword.name,
                 'type': keyword.type,
                 'timeout': keyword.timeout,
                 'doc': keyword.doc
             })
-        except IntegrityError:
+        except IntegrityError as e:
             keyword_id = self._db.fetch_id('keywords', {
+                'test_id': test_id,
+                'keyword_xml_id': keyword.id,
                 'name': keyword.name,
                 'type': keyword.type
             })
         self._parse_keyword_status(test_run_id, keyword_id, keyword)
-        self._parse_messages(keyword.messages, keyword_id)
-        self._parse_arguments(keyword.args, keyword_id)
-        self._parse_keywords(keyword.keywords, test_run_id, None, None, keyword_id)
+        self._parse_messages(keyword.messages, test_id, keyword_id)
+        self._parse_arguments(keyword.args, test_id, keyword_id)
+        self._parse_keywords(keyword.keywords, test_run_id, None, None)
 
     def _parse_keyword_status(self, test_run_id, keyword_id, keyword):
         self._db.insert_or_ignore('keyword_status', {
@@ -201,18 +202,20 @@ class RobotResultsParser(object):
             'elapsed': keyword.elapsedtime
         })
 
-    def _parse_messages(self, messages, keyword_id):
+    def _parse_messages(self, messages, test_id, keyword_id):
         for message in messages:
             self._db.insert_or_ignore('messages', {
+                'test_id': test_id,
                 'keyword_id': keyword_id, 'level': message.level,
                 'timestamp': self._format_robot_timestamp(message.timestamp),
                 'content': message.message,
                 'content_hash': self._string_hash(message.message)
             })
 
-    def _parse_arguments(self, args, keyword_id):
+    def _parse_arguments(self, args, test_id, keyword_id):
         for arg in args:
             self._db.insert_or_ignore('arguments', {
+                'test_id': test_id,
                 'keyword_id': keyword_id,
                 'content': arg,
                 'content_hash': self._string_hash(arg)
