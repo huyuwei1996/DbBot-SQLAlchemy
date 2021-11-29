@@ -65,6 +65,7 @@ class RobotResultsParser(object):
             self._db.insert_or_ignore('test_run_errors', {
                 'test_run_id': test_run_id, 'level': error.level,
                 'timestamp': self._format_robot_timestamp(error.timestamp),
+                'time_string': self._format_robot_timestamp_to_time_string(error.timestamp),
                 'content': error.message,
                 'content_hash': self._string_hash(error.message)
             })
@@ -153,7 +154,7 @@ class RobotResultsParser(object):
             })
         self._parse_test_status(test_run_id, test_id, test)
         self._parse_tags(test.tags, test_id)
-        self._parse_keywords(test.keywords, test_run_id, None, test_id)
+        self._parse_keywords(test.keywords, test_run_id, suite_id, test_id)
 
     def _parse_test_status(self, test_run_id, test_id, test):
         self._db.insert_or_ignore('test_status', {
@@ -183,16 +184,18 @@ class RobotResultsParser(object):
                 'doc': keyword.doc
             })
         except IntegrityError as e:
+            self._verbose(f'Keywords has been Insert. {e}')
             keyword_id = self._db.fetch_id('keywords', {
+                'suite_id': suite_id,
                 'test_id': test_id,
                 'keyword_xml_id': keyword.id,
                 'name': keyword.name,
                 'type': keyword.type
             })
         self._parse_keyword_status(test_run_id, keyword_id, keyword)
-        self._parse_messages(keyword.messages, test_id, keyword_id)
-        self._parse_arguments(keyword.args, test_id, keyword_id)
-        self._parse_keywords(keyword.keywords, test_run_id, None, None)
+        self._parse_messages(keyword.messages, suite_id, test_id, keyword_id)
+        self._parse_arguments(keyword.args, suite_id, test_id, keyword_id)
+        self._parse_keywords(keyword.keywords, test_run_id, suite_id, test_id)
 
     def _parse_keyword_status(self, test_run_id, keyword_id, keyword):
         self._db.insert_or_ignore('keyword_status', {
@@ -202,21 +205,26 @@ class RobotResultsParser(object):
             'elapsed': keyword.elapsedtime
         })
 
-    def _parse_messages(self, messages, test_id, keyword_id):
+    def _parse_messages(self, messages, suite_id, test_id, keyword_id):
         for message in messages:
             self._db.insert_or_ignore('messages', {
+                'suite_id': suite_id,
                 'test_id': test_id,
-                'keyword_id': keyword_id, 'level': message.level,
+                'keyword_id': keyword_id,
+                'level': message.level,
                 'timestamp': self._format_robot_timestamp(message.timestamp),
+                'time_string': self._format_robot_timestamp_to_time_string(message.timestamp),
                 'content': message.message,
                 'content_hash': self._string_hash(message.message)
             })
 
-    def _parse_arguments(self, args, test_id, keyword_id):
-        for arg in args:
+    def _parse_arguments(self, args, suite_id, test_id, keyword_id):
+        for index, arg in enumerate(args):
             self._db.insert_or_ignore('arguments', {
+                'suite_id': suite_id,
                 'test_id': test_id,
                 'keyword_id': keyword_id,
+                'position': index,
                 'content': arg,
                 'content_hash': self._string_hash(arg)
             })
@@ -224,6 +232,11 @@ class RobotResultsParser(object):
     @staticmethod
     def _format_robot_timestamp(timestamp):
         return datetime.strptime(timestamp, '%Y%m%d %H:%M:%S.%f') if timestamp else None
+
+    @staticmethod
+    def _format_robot_timestamp_to_time_string(timestamp):
+        return datetime.strftime(datetime.strptime(timestamp, '%Y%m%d %H:%M:%S.%f'),
+                                 '%Y-%m-%d %H:%M:%S.%f') if timestamp else None
 
     @staticmethod
     def _string_hash(string):
