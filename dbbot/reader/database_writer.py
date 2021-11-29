@@ -85,11 +85,12 @@ class DatabaseWriter(object):
     def _create_table_suites(self):
         return self._create_table('suites', (
             Column('suite_id', Integer, ForeignKey('suites.id')),
+            Column('test_run_id', Integer, ForeignKey('test_runs.id')),
             Column('xml_id', String(64), nullable=False),
             Column('name', String(255), nullable=False),
             Column('source', String(255)),
             Column('doc', Text)
-        ), ('name', 'source'))
+        ), ('test_run_id', 'name', 'source'))
 
     def _create_table_suite_status(self):
         return self._create_table('suite_status', (
@@ -127,7 +128,7 @@ class DatabaseWriter(object):
             Column('type', String(64), nullable=False),
             Column('timeout', String(4)),
             Column('doc', Text)
-        ), ('test_id', 'keyword_xml_id', 'name', 'type'))
+        ), ('suite_id', 'keyword_xml_id', 'name', 'type'))
 
     def _create_table_keyword_status(self):
         return self._create_table('keyword_status', (

@@ -106,6 +106,7 @@ class RobotResultsParser(object):
         try:
             suite_id = self._db.insert('suites', {
                 'suite_id': parent_suite_id,
+                'test_run_id': test_run_id,
                 'xml_id': suite.id,
                 'name': suite.name,
                 'source': suite.source,
@@ -113,6 +114,7 @@ class RobotResultsParser(object):
             })
         except IntegrityError:
             suite_id = self._db.fetch_id('suites', {
+                'test_run_id': test_run_id,
                 'name': suite.name,
                 'source': suite.source
             })
