@@ -109,7 +109,7 @@ class DatabaseWriter(object):
             Column('name', String(255), nullable=False),
             Column('timeout', String(64)),
             Column('doc', Text)
-        ), ('suite_id', 'name'))
+        ), ('suite_id', 'xml_id', 'name'))
 
     def _create_table_test_status(self):
         return self._create_table('test_status', (
